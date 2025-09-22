@@ -1,0 +1,5 @@
+"poster_path": "/8XfIKOPmuCZLh5ooK13SPKeybWF.jpg"
+
+https://image.tmdb.org/t/p/<size>/<poster_path>
+
+https://image.tmdb.org/t/p/w500/8XfIKOPmuCZLh5ooK13SPKeybWF.jpg

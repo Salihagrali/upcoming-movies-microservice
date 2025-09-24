@@ -1,4 +1,4 @@
-package com.movies.movieserver;
+package com.movies.movieserver.movie;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

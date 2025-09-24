@@ -1,4 +1,4 @@
-package com.movies.movieserver;
+package com.movies.movieserver.movie;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;

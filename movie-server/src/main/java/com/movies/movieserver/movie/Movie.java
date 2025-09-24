@@ -1,4 +1,4 @@
-package com.movies.movieserver;
+package com.movies.movieserver.movie;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package com.movies.movieserver;
+package com.movies.movieserver.movie;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

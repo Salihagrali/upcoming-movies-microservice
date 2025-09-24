@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -14,11 +15,11 @@ public class MovieService {
     @Value("${tmbd.api.key}")
     private String apiKey;
 
-    public String cacheMovies(){
+    public List<Movie> cacheMovies(){
         String bearerToken = "Bearer " + apiKey;
         String today = LocalDate.now().toString();
 
-        String resp =  movieClient.getUpcomingMovies(
+        MovieApiResponse resp =  movieClient.getUpcomingMovies(
                 bearerToken,
                 "en-US",
                 1,
@@ -27,7 +28,7 @@ public class MovieService {
                 today
         );
 
-        System.out.println(resp);
-        return resp;
+        System.out.println(resp.results());
+        return resp.results();
     }
 }

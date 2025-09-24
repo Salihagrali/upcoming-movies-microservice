@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface MovieClient {
 
     @GetMapping("/discover/movie")
-    String getUpcomingMovies(
+    MovieApiResponse getUpcomingMovies(
             @RequestHeader("Authorization") String bearerToken,
             @RequestParam("language") String language,
             @RequestParam("page") int page,

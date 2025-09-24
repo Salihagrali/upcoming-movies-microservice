@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 public class MovieController {
@@ -11,7 +13,7 @@ public class MovieController {
     private final MovieService movieService;
 
     @GetMapping("/movies")
-    public String getMovies() {
+    public List<Movie> getMovies() {
         return movieService.cacheMovies();
     }
 }

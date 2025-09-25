@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -22,16 +23,25 @@ public class MovieService {
         String bearerToken = "Bearer " + apiKey;
         String today = LocalDate.now().toString();
 
-        MovieApiResponse resp =  movieClient.getUpcomingMovies(
-                bearerToken,
-                "en-US",
-                1,
-                "US",
-                "2|3",
-                today
-        );
+        Movie m1 = productRedisTemplate.opsForList().getFirst("upcomingMovies:page_1");
+        System.out.println(m1);
+        List<Movie> cachedMovies = productRedisTemplate.opsForList().range("upcomingMovies:page_1",0,-1);
 
-        productRedisTemplate.opsForList().rightPushAll("upcomingMovies:page_1", resp.results());
-        return resp.results();
+        assert cachedMovies != null;
+        if(cachedMovies.isEmpty()){
+            MovieApiResponse resp =  movieClient.getUpcomingMovies(
+                    bearerToken,
+                    "en-US",
+                    1,
+                    "US",
+                    "2|3",
+                    today
+            );
+
+            productRedisTemplate.opsForList().rightPushAll("upcomingMovies:page_1", resp.results());
+            productRedisTemplate.expire("upcomingMovies:page_1", Duration.ofHours(3));
+            return resp.results();
+        }
+        return cachedMovies;
     }
 }

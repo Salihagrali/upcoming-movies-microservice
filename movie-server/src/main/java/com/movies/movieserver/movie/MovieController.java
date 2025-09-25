@@ -12,8 +12,8 @@ public class MovieController {
 
     private final MovieService movieService;
 
-    @GetMapping("/movies")
-    public List<Movie> getMovies() {
-        return movieService.cacheMovies();
+    @GetMapping("/upcomingMovies")
+    public List<Movie> getUpcomingMovies() {
+        return movieService.fetchUpcomingMovies();
     }
 }

@@ -19,27 +19,26 @@ public class MovieService {
     @Value("${tmbd.api.key}")
     private String apiKey;
 
-    public List<Movie> fetchUpcomingMovies(){
+    public List<Movie> fetchUpcomingMovies(int pageNumber){
         String bearerToken = "Bearer " + apiKey;
         String today = LocalDate.now().toString();
+        String cacheKey = "upcomingMovies:page_" + pageNumber;
 
-        Movie m1 = productRedisTemplate.opsForList().getFirst("upcomingMovies:page_1");
-        System.out.println(m1);
-        List<Movie> cachedMovies = productRedisTemplate.opsForList().range("upcomingMovies:page_1",0,-1);
+        List<Movie> cachedMovies = productRedisTemplate.opsForList().range(cacheKey,0,-1);
 
         assert cachedMovies != null;
         if(cachedMovies.isEmpty()){
             MovieApiResponse resp =  movieClient.getUpcomingMovies(
                     bearerToken,
                     "en-US",
-                    1,
+                    pageNumber,
                     "US",
                     "2|3",
                     today
             );
 
-            productRedisTemplate.opsForList().rightPushAll("upcomingMovies:page_1", resp.results());
-            productRedisTemplate.expire("upcomingMovies:page_1", Duration.ofHours(3));
+            productRedisTemplate.opsForList().rightPushAll(cacheKey, resp.results());
+            productRedisTemplate.expire(cacheKey, Duration.ofHours(3));
             return resp.results();
         }
         return cachedMovies;

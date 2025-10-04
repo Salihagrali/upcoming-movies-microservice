@@ -64,12 +64,13 @@ public class UserService {
        String userId = CreatedResponseUtil.getCreatedId(response);
        RealmResource realmResource = keycloak.realm(realm);
 
-       setPasswordForNewlyCreatedUser(realmResource,user.password(),userId);
+       setPasswordForUser(realmResource,user.password(),userId);
        setRolesForUsers(realmResource,userId);
        return userId;
     }
 
-   private void setPasswordForNewlyCreatedUser(RealmResource resource, String password, String userId){
+   // can also change the existing user's password.
+   private void setPasswordForUser(RealmResource resource, String password, String userId){
        CredentialRepresentation passwordCred = new CredentialRepresentation();
        passwordCred.setTemporary(false);
        passwordCred.setType(CredentialRepresentation.PASSWORD);

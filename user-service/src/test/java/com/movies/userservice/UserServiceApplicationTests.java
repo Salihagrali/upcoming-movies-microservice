@@ -3,6 +3,8 @@ package com.movies.userservice;
 import com.movies.userservice.user.KeycloakUser;
 import com.movies.userservice.user.UserService;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
+import jakarta.ws.rs.WebApplicationException;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.OAuth2Constants;
@@ -18,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.keycloak.admin.client.KeycloakBuilder.*;
 
 @Testcontainers
@@ -33,11 +36,11 @@ class UserServiceApplicationTests {
             .withRealmImportFile(REALM_IMPORT_FILE)
             .withEnv("KC_FEATURES", "scripts");
 
-    private UserService userService;
-    private Keycloak adminClient;
+    private static UserService userService;
+    private static Keycloak adminClient;
 
-    @BeforeEach
-    void setUp(){
+    @BeforeAll
+    static void setUp(){
         userService = new UserService();
 
         try{
@@ -57,24 +60,23 @@ class UserServiceApplicationTests {
                 .grantType(OAuth2Constants.PASSWORD)
                 .build();
 
-        // --- THIS IS THE CRUCIAL PART ---
-// Get the realm-management client's roles
+        // Get the realm-management client's roles
         ClientRepresentation realmMgmtClientRep = adminClient.realm(REALM_NAME).clients().findByClientId("realm-management").get(0);
         ClientResource realmMgmtClient = adminClient.realm(REALM_NAME).clients().get(realmMgmtClientRep.getId());
         RoleRepresentation viewUsersRole = realmMgmtClient.roles().get("view-users").toRepresentation();
         RoleRepresentation manageUsersRole = realmMgmtClient.roles().get("manage-users").toRepresentation();
         RoleRepresentation viewRealmRole = realmMgmtClient.roles().get("view-realm").toRepresentation();
 
-// Get your client's service account user
+        // Get your client's service account user
         ClientRepresentation yourClientRep = adminClient.realm(REALM_NAME).clients().findByClientId(CLIENT_ID).get(0);
         ClientResource yourClient = adminClient.realm(REALM_NAME).clients().get(yourClientRep.getId());
         String serviceAccountUserId = yourClient.getServiceAccountUser().getId();
         UserResource serviceAccountUser = adminClient.realm(REALM_NAME).users().get(serviceAccountUserId);
 
-// Assign the roles to the service account
+        // Assign the roles to the service account
         serviceAccountUser.roles().clientLevel(realmMgmtClientRep.getId()).add(List.of(viewUsersRole, manageUsersRole, viewRealmRole));
     }
-    private void setField(Object target, String fieldName, Object value) throws IllegalAccessException, NoSuchFieldException {
+    private static void setField(Object target, String fieldName, Object value) throws IllegalAccessException, NoSuchFieldException {
         var field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target,value);
@@ -100,5 +102,15 @@ class UserServiceApplicationTests {
                 .map(RoleRepresentation::getName)
                 .toList();
         assertThat(realmRoles).contains("USER");
+    }
+    @Test
+    void whenAlreadyUsedUsername_thenThrowException(){
+        //Register an user here to test duplicate usernames.
+        userService.registerUser(new KeycloakUser("duplicate","123"));
+
+        KeycloakUser newUser = new KeycloakUser("duplicate","testpassword");
+        assertThrows(jakarta.ws.rs.WebApplicationException.class,
+                () -> userService.registerUser(newUser),
+                "Expected registerUser() to throw, but it didn't");
     }
 }

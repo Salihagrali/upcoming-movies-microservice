@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(
         name = "the-movie-db-client",
-        url = "https://api.themoviedb.org/3")
+        url = "https://api.themoviedb.org/3",
+        contextId = "movieDbExternalClient")
 public interface MovieClient {
 
     @GetMapping("/discover/movie")

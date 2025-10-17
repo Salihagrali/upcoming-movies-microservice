@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
-@EnableFeignClients(basePackages = "com.movies.movieserver.movie.external")
+@EnableFeignClients
 //@EnableCaching
 public class MovieServiceApplication {
 

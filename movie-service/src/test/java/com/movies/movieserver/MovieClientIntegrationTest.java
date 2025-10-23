@@ -6,6 +6,7 @@ import com.movies.movieserver.movie.MovieService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -33,10 +34,10 @@ class MovieClientIntegrationTest {
 
     private static WireMockServer wireMockServer;
 
-    // Testcontainer for Redis
     @Container
+//  @ServiceConnection --autoconfigures with spring boot--
     static GenericContainer<?> redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379)
+            .withExposedPorts(6379) // ← Expose Redis's internal port 6379
             .withReuse(true);
 
     @DynamicPropertySource
@@ -47,14 +48,10 @@ class MovieClientIntegrationTest {
 
         // Override Feign client URL to point to WireMock
         registry.add("movie.api.url", () -> "http://localhost:" + wireMockServer.port());
-
-        // Set dummy API key
-        registry.add("tmbd.api.key", () -> "test-api-key-12345");
     }
 
     @BeforeAll
     static void startWireMock() {
-        // Start WireMock on a random port
         wireMockServer = new WireMockServer(options().dynamicPort());
         wireMockServer.start();
 

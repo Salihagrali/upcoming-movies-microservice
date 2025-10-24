@@ -23,6 +23,13 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/users/register").permitAll()
+                        .pathMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/webjars/**",
+                                "/movies/v3/api-docs"
+                        ).permitAll()
                         .pathMatchers("/movies/**").authenticated()
                         .anyExchange().permitAll()
                 )

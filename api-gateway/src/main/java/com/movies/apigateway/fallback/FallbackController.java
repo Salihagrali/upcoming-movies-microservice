@@ -22,7 +22,7 @@ public class FallbackController {
         response.put("fallback","true");
 
         if(jwt != null){
-            response.put("user",jwt.getClaim("preffered_username"));
+            response.put("user",jwt.getClaim("preferred_username"));
         }
 
         return ResponseEntity

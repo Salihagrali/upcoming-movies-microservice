@@ -43,4 +43,24 @@ public class MovieService {
         }
         return cachedMovies;
     }
+
+    public List<Movie> getNowPlayingMovies(int pageNumber){
+        String bearerToken = "Bearer " + apiKey;
+        String cacheKey = "nowPlayingMovies:page_" + pageNumber;
+
+        List<Movie> cachedPlayingMovies = productRedisTemplate.opsForList().range(cacheKey,0,-1);
+
+        if(cachedPlayingMovies == null || cachedPlayingMovies.isEmpty()){
+            MovieApiResponse res = movieClient.getNowPlayingMovies(
+                    bearerToken,
+                    "en-US",
+                    pageNumber,
+                    "TR"
+            );
+            productRedisTemplate.opsForList().rightPushAll(cacheKey,res.results());
+            productRedisTemplate.expire(cacheKey,Duration.ofHours(1));
+            return res.results();
+        }
+        return cachedPlayingMovies;
+    }
 }

@@ -26,4 +26,11 @@ public class MovieController {
         System.out.println("User ID: " + jwt.getClaim("sub"));
         return movieService.fetchUpcomingMovies(pageNumber);
     }
+
+    @GetMapping("/nowPlaying")
+    public List<Movie> getNowPlayingMovies(
+            @RequestParam(required = false, defaultValue = "1") int pageNumber
+    ){
+        return movieService.getNowPlayingMovies(pageNumber);
+    }
 }

@@ -20,4 +20,12 @@ public interface MovieClient {
             @RequestParam("with_release_type") String releaseType,
             @RequestParam("primary_release_date.gte") String releaseDateGte
     );
+
+    @GetMapping("/movie/now_playing")
+    MovieApiResponse getNowPlayingMovies(
+            @RequestHeader("Authorization") String bearerToken,
+            @RequestParam("language") String language,
+            @RequestParam("page") int page,
+            @RequestParam("region") String region
+    );
 }

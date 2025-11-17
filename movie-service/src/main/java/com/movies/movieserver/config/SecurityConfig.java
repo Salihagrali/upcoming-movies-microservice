@@ -21,6 +21,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/webjars/**",
+                                //! Allow unauthenticated access to the nowPlaying endpoint
                                 "/nowPlaying"
                         ).permitAll()
                         .anyRequest().authenticated()

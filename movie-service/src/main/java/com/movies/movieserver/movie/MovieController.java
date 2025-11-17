@@ -3,11 +3,10 @@ package com.movies.movieserver.movie;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -33,4 +32,13 @@ public class MovieController {
     ){
         return movieService.getNowPlayingMovies(pageNumber);
     }
+
+
+//    @PostMapping("/movies/{id}/favorite")
+//    public ResponseEntity<Void> setFavoriteMovie(
+//            @AuthenticationPrincipal Jwt jwt,
+//            @PathVariable Long id,
+//            @RequestBody Movie movie){
+//
+//    }
 }

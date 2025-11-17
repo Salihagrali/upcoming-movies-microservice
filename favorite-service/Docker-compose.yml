@@ -8,9 +8,9 @@ services:
       POSTGRES_DB: favorite_db
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "1432:5432"
     volumes:
-      - postgres_data:/var/lib/postgressql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
       - microservices-network

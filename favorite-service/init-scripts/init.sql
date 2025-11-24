@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS favorites (
     id BIGSERIAL PRIMARY KEY,
     -- User identifier (from Keycloak/JWT subject)
     user_id VARCHAR(255) NOT NULL,
-    -- Movie data mapped from your Java Record
+    -- Movie data mapped from my Java Record
     movie_id INTEGER NOT NULL,
     title VARCHAR(255),
     original_title VARCHAR(255),

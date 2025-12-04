@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -40,8 +41,26 @@ public class MovieController {
     @PostMapping("/{movieId}/favorite")
     public ResponseEntity<String> addToFavorites(
             @PathVariable Integer movieId,
-            //@AuthenticationPrincipal Jwt jwt,
-            @RequestBody MovieFavoriteAddedEvent event){
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Movie movie){
+
+        MovieFavoriteAddedEvent event = MovieFavoriteAddedEvent.builder()
+                .movieId(movieId)
+                .userId(jwt.getSubject())
+                .title(movie.title())
+                .originalTitle(movie.original_title())
+                .overview(movie.overview())
+                .releaseDate(LocalDate.parse(movie.release_date()))
+                .posterPath(movie.poster_path())
+                .backdropPath(movie.backdrop_path())
+                .popularity(movie.popularity())
+                .voteAverage(movie.vote_average())
+                .voteCount(movie.vote_count())
+                .genreIds(movie.genre_ids())
+                .originalLanguage(movie.original_language())
+                .adult(movie.adult())
+                .video(movie.video())
+                .build();
         eventProducer.publishMovieFavoriteAdded(event);
         return ResponseEntity.ok("Movie added to favorites.Event published");
     }

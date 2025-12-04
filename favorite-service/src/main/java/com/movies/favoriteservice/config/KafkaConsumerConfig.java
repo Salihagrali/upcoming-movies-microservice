@@ -33,8 +33,12 @@ public class KafkaConsumerConfig {
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"earliest");
         config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.movies.favoriteservice.favorite.event.MovieFavoriteAddedEvent");
+//        config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+//        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.movies.favoriteservice.favorite.event.MovieFavoriteAddedEvent");
+        config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);
+        config.put(JsonDeserializer.TYPE_MAPPINGS,
+                "movieFavoriteAdded:com.movies.favoriteservice.favorite.event.MovieFavoriteAddedEvent," +
+                "movieFavoriteRemoved:com.movies.favoriteservice.favorite.event.MovieFavoriteRemovedEvent");
 
         return new DefaultKafkaConsumerFactory<>(config,
                 new StringDeserializer(),

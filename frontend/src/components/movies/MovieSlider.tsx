@@ -6,9 +6,10 @@ interface MovieSliderProps {
   title: string;
   movies: MovieData[];
   onMovieClick: (movie: MovieData) => void;
+  onFavoriteClick: (movie: MovieData) => void;
 }
 
-export const MovieSlider: React.FC<MovieSliderProps> = ({ title, movies, onMovieClick }) => {
+export const MovieSlider: React.FC<MovieSliderProps> = ({ title, movies, onMovieClick,onFavoriteClick }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   
   // Refs for smooth hover scrolling logic
@@ -103,6 +104,7 @@ export const MovieSlider: React.FC<MovieSliderProps> = ({ title, movies, onMovie
               key={movie.id} 
               movie={movie} 
               onMovieClick={onMovieClick}
+              onFavoriteClick={onFavoriteClick}
             />
           ))}
           

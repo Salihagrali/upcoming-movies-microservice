@@ -1,13 +1,15 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface NavbarProps {
     isLoggedIn: boolean;
+    userName?: string;
     onLoginClick: () => void; // Placeholder for navigation logic
     onRegisterClick: () => void; // Placeholder for navigation logic
+    onLogoutClick: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLoginClick, onRegisterClick }) => {
+export const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, userName, onLoginClick, onRegisterClick, onLogoutClick }) => {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -38,18 +40,26 @@ export const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLoginClick, onRegi
              <Search className="text-white cursor-pointer hover:text-gray-300" size={20}/>
              
              {isLoggedIn ? (
-                 // Logged In View
                  <>
                     <Bell className="text-white cursor-pointer hover:text-gray-300" size={20}/>
-                    <div className="flex items-center gap-2 cursor-pointer group">
-                        <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                        S
+                    <div className="flex items-center gap-2 cursor-pointer group relative">
+                        <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm uppercase">
+                            {userName ? userName[0] : 'U'}
                         </div>
-                        <span className="text-xs text-white hidden group-hover:block">Salih</span>
+                        <span className="text-xs text-white hidden md:block">{userName}</span> {/*group-hover:block */}
+                        
+                        {/* Dropdown for Logout */}
+                        <div className="absolute right-0 top-full mt-2 w-32 bg-[#181818] border border-gray-700 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                            <button 
+                                onClick={onLogoutClick}
+                                className="w-full text-left px-4 py-3 text-sm text-white hover:bg-gray-800 flex items-center gap-2"
+                            >
+                                <LogOut size={14} /> Logout
+                            </button>
+                        </div>
                     </div>
                  </>
              ) : (
-                 // Guest View (Login/Register)
                  <div className="flex items-center gap-4">
                     <button 
                         onClick={onLoginClick}

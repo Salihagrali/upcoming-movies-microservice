@@ -4,6 +4,7 @@ import type { MovieData } from './types/movie';
 import { Navbar } from './components/common/Navbar';
 import { MovieSlider } from './components/movies/MovieSlider';
 import { MovieDetailsModal } from './components/movies/MovieDetailsModal';
+import { useAuth } from 'react-oidc-context';
 
 
 // --- Mock Data Generator ---
@@ -28,6 +29,8 @@ const generateMockMovies = (count: number, type: 'upcoming' | 'now_playing' | 't
 
 // 5. Main App Component
 export default function App() {
+  const auth = useAuth();
+
   const [upcomingMovies, setUpcomingMovies] = useState<MovieData[]>([]);
   const [nowPlayingMovies, setNowPlayingMovies] = useState<MovieData[]>([]);
   const [topPicks, setTopPicks] = useState<MovieData[]>([]);
@@ -35,7 +38,7 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Temp state to simulate login toggle
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  //const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     setUpcomingMovies(generateMockMovies(12, 'upcoming'));
@@ -43,17 +46,74 @@ export default function App() {
     setTopPicks(generateMockMovies(12, 'top_picks'));
   }, []);
 
+  // 3. Loading State
+  if (auth.isLoading) {
+      return (
+        <div className="min-h-screen bg-[#141414] flex items-center justify-center">
+            <div className="text-red-600 font-bold text-2xl animate-pulse">Loading MovieTime...</div>
+        </div>
+      );
+  }
+
   const handleMovieClick = (movie: MovieData) => {
     setSelectedMovie(movie);
     setIsModalOpen(true);
   };
 
+  // 4. API Logic using the Token
+  const toggleFavorite = async (movie: MovieData) => {
+    if (!auth.isAuthenticated || !auth.user?.access_token) {
+        alert("Please log in to add to favorites!");
+        auth.signinRedirect(); // Optional: Redirect to login immediately
+        return;
+    }
+
+    const payload = {
+        userId: auth.user?.profile.sub, // Get User ID from Token
+        movieId: movie.id,
+        title: movie.title,
+        originalTitle: movie.original_title,
+        overview: movie.overview,
+        releaseDate: movie.release_date,
+        posterPath: movie.poster_path,
+        backdropPath: movie.backdrop_path,
+        popularity: movie.popularity,
+        voteAverage: movie.vote_average,
+        voteCount: movie.vote_count,
+        genreIds: movie.genre_ids,
+        originalLanguage: movie.original_language,
+        adult: movie.adult,
+        video: movie.video
+    };
+
+    try {
+        console.log("Sending favorite request for:", movie.title);
+        // Note: You would likely toggle between POST and DELETE here based on state
+        const response = await fetch(`http://localhost:8080/movies/${movie.id}/favorite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${auth.user.access_token}` // Pass the Token!
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("Failed to update favorite");
+        console.log("Favorite updated successfully!");
+    } catch (error) {
+        console.error("API Error:", error);
+        alert("Failed to update favorites. Check console.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#141414] text-white font-sans overflow-x-hidden">
       <Navbar 
-        isLoggedIn={isLoggedIn}
-        onLoginClick={() => setIsLoggedIn(true)} // Simulate Login
-        onRegisterClick={() => alert("Navigating to Register Page...")}
+        isLoggedIn={auth.isAuthenticated}
+        userName={auth.user?.profile.given_name || auth.user?.profile.preferred_username}
+        onLoginClick={() => auth.signinRedirect()}
+        onRegisterClick={() => auth.signinRedirect({ extraQueryParams: { prompt: "create" } })} // Forces Keycloak registration page
+        onLogoutClick={() => auth.signoutRedirect()}
       />
 
       {/* HERO SECTION */}
@@ -70,10 +130,10 @@ export default function App() {
           
           <div className="absolute top-[45%] left-0 transform -translate-y-1/2 p-8 md:p-16 space-y-6 max-w-2xl z-10">
              {/* Conditional Personal Greeting */}
-             {isLoggedIn && (
+             {auth.isAuthenticated && (
                 <div className="flex items-center gap-2 text-gray-300 font-medium tracking-wide uppercase text-sm animate-in fade-in slide-in-from-left-4 duration-500">
                     <span className="w-1 h-4 bg-red-600 block"></span>
-                    Welcome back, Salih!
+                    Welcome back, {auth.user?.profile.preferred_username || "User"}!
                 </div>
              )}
 
@@ -98,11 +158,12 @@ export default function App() {
 
       {/* Content Rows */}
       <div className="relative z-20 space-y-2 md:-mt-24 pl-0">
-        {isLoggedIn && (
+        {auth.isAuthenticated && (
             <MovieSlider 
-                title="Top Picks for Salih" 
+                title="Top Picks for You" 
                 movies={topPicks} 
                 onMovieClick={handleMovieClick}
+                onFavoriteClick={toggleFavorite}
             />
         )}
         
@@ -110,12 +171,14 @@ export default function App() {
           title="Upcoming Movies" 
           movies={upcomingMovies} 
           onMovieClick={handleMovieClick}
+          onFavoriteClick={toggleFavorite}
         />
         
         <MovieSlider 
           title="Now Playing in Theaters" 
           movies={nowPlayingMovies} 
           onMovieClick={handleMovieClick}
+          onFavoriteClick={toggleFavorite}
         />
       </div>
 

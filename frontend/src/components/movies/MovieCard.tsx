@@ -5,15 +5,16 @@ import { Heart, Play } from "lucide-react";
 interface MovieCardProps {
   movie: MovieData;
   onMovieClick: (movie: MovieData) => void;
+  onFavoriteClick: (movie: MovieData) => void;
 }
 
-export const MovieCard: React.FC<MovieCardProps> = ({ movie, onMovieClick }) => {
+export const MovieCard: React.FC<MovieCardProps> = ({ movie, onMovieClick,onFavoriteClick }) => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsFavorite(!isFavorite);
-    // API logic here (POST/DELETE)
+    onFavoriteClick(movie);
   };
 
   return (

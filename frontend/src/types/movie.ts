@@ -14,4 +14,5 @@ export interface MovieData {
   original_language: string;
   adult: boolean;
   video: boolean;
+  isFavorite: boolean;
 }

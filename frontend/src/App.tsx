@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Play, Info } from 'lucide-react';
 import type { MovieData } from './types/movie';
 import { Navbar } from './components/common/Navbar';
@@ -6,28 +6,8 @@ import { MovieSlider } from './components/movies/MovieSlider';
 import { MovieDetailsModal } from './components/movies/MovieDetailsModal';
 import { useAuth } from 'react-oidc-context';
 
+const API_BASE_URL = 'http://localhost:9000';
 
-// --- Mock Data Generator ---
-const generateMockMovies = (count: number, type: 'upcoming' | 'now_playing' | 'top_picks'): MovieData[] => {
-  return Array.from({ length: count }).map((_, i) => ({
-    id: i + (type === 'upcoming' ? 100 : type === 'now_playing' ? 200 : 300),
-    title: type === 'top_picks' ? `Recommended Movie ${i + 1}` : type === 'upcoming' ? `Upcoming Hit ${i + 1}` : `Now Playing ${i + 1}`,
-    original_title: 'Original Title',
-    overview: `This movie matches your taste in genres and features stunning visuals. Dive into the story of Movie ${i+1} and experience the thrill.`,
-    release_date: '2023-12-01',
-    poster_path: `https://placehold.co/300x450/1a1a1a/ffffff?text=Movie+${i+1}`, 
-    backdrop_path: `https://placehold.co/1280x720/1a1a1a/ffffff?text=Backdrop+${i+1}`,
-    popularity: 8.5 + (Math.random() * 2),
-    vote_average: 7.5 + (Math.random() * 2),
-    vote_count: Math.floor(Math.random() * 1000),
-    genre_ids: [28, 12],
-    original_language: 'en',
-    adult: false,
-    video: false,
-  }));
-};
-
-// 5. Main App Component
 export default function App() {
   const auth = useAuth();
 
@@ -36,75 +16,113 @@ export default function App() {
   const [topPicks, setTopPicks] = useState<MovieData[]>([]);
   const [selectedMovie, setSelectedMovie] = useState<MovieData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false); // New loading state for data
 
-  // Temp state to simulate login toggle
-  //const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // NEW: State for the Movie to feature in the Hero section
+    const [heroMovie, setHeroMovie] = useState<MovieData | null>(null);
 
-  useEffect(() => {
-    setUpcomingMovies(generateMockMovies(12, 'upcoming'));
-    setNowPlayingMovies(generateMockMovies(12, 'now_playing'));
-    setTopPicks(generateMockMovies(12, 'top_picks'));
-  }, []);
+  // 1. Data Fetching Function (Reusable)
+    const fetchMovieData = useCallback(async (endpoint: string, setter: React.Dispatch<React.SetStateAction<MovieData[]>>) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch data from ${endpoint}. Status: ${response.status}`);
+            }
+            const data: MovieData[] = await response.json();
+            setter(data);
+            return data; // Return data for setting hero movie
+        } catch (error) {
+            console.error("API Fetch Error:", error);
+            setter([]); 
+            return [];
+        }
+    }, []);
 
-  // 3. Loading State
-  if (auth.isLoading) {
-      return (
-        <div className="min-h-screen bg-[#141414] flex items-center justify-center">
-            <div className="text-red-600 font-bold text-2xl animate-pulse">Loading MovieTime...</div>
-        </div>
-      );
-  }
+  // 2. Effect to fetch movies and set the hero movie
+    useEffect(() => {
+        setIsLoadingData(true);
+        const fetchAllData = async () => {
+            // Fetch upcoming movies and capture the result
+            const upcoming = await fetchMovieData('/movies/upcomingMovies', setUpcomingMovies);
+            
+            // Fetch now playing movies concurrently
+            await fetchMovieData('/movies/nowPlaying', setNowPlayingMovies);
 
-  const handleMovieClick = (movie: MovieData) => {
-    setSelectedMovie(movie);
-    setIsModalOpen(true);
-  };
+            // Set the Hero movie using the first movie from upcoming
+            if (upcoming.length > 0) {
+                setHeroMovie(upcoming[0]);
+            }
 
-  // 4. API Logic using the Token
-  const toggleFavorite = async (movie: MovieData) => {
-    if (!auth.isAuthenticated || !auth.user?.access_token) {
-        alert("Please log in to add to favorites!");
-        auth.signinRedirect(); // Optional: Redirect to login immediately
-        return;
+            setIsLoadingData(false);
+        };
+        
+        fetchAllData();
+    }, [fetchMovieData]);
+
+    // Combined Loading State
+    if (auth.isLoading || isLoadingData || !heroMovie) {
+        return (
+            <div className="min-h-screen bg-[#141414] flex items-center justify-center">
+                <div className="text-red-600 font-bold text-2xl animate-pulse">Loading Movie Data...</div>
+            </div>
+        );
     }
 
-    const payload = {
-        userId: auth.user?.profile.sub, // Get User ID from Token
-        movieId: movie.id,
-        title: movie.title,
-        originalTitle: movie.original_title,
-        overview: movie.overview,
-        releaseDate: movie.release_date,
-        posterPath: movie.poster_path,
-        backdropPath: movie.backdrop_path,
-        popularity: movie.popularity,
-        voteAverage: movie.vote_average,
-        voteCount: movie.vote_count,
-        genreIds: movie.genre_ids,
-        originalLanguage: movie.original_language,
-        adult: movie.adult,
-        video: movie.video
+    const handleMovieClick = (movie: MovieData) => {
+        setSelectedMovie(movie);
+        setIsModalOpen(true);
     };
 
-    try {
-        console.log("Sending favorite request for:", movie.title);
-        // Note: You would likely toggle between POST and DELETE here based on state
-        const response = await fetch(`http://localhost:8080/movies/${movie.id}/favorite`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${auth.user.access_token}` // Pass the Token!
-            },
-            body: JSON.stringify(payload)
-        });
+  // 3. UPDATED API Logic for Favorites (Toggles POST/DELETE)
+    const toggleFavorite = async (movie: MovieData, isFavorite: boolean) => {
+        if (!auth.isAuthenticated || !auth.user?.access_token) {
+            alert("Please log in to add to favorites!");
+            return;
+        }
 
-        if (!response.ok) throw new Error("Failed to update favorite");
-        console.log("Favorite updated successfully!");
-    } catch (error) {
-        console.error("API Error:", error);
-        alert("Failed to update favorites. Check console.");
-    }
-  };
+        const method = isFavorite ? 'DELETE' : 'POST';
+        const action = isFavorite ? 'Removing' : 'Adding';
+
+        // Payload is only necessary for POST (Adding), but included for consistency
+        const payload = {
+            id: movie.id, 
+            title: movie.title,
+            // React (camelCase) -> Java Backend (snake_case)
+            original_title: movie.original_title, 
+            overview: movie.overview,
+            release_date: movie.release_date,
+            poster_path: movie.poster_path,
+            backdrop_path: movie.backdrop_path,
+            popularity: movie.popularity,
+            vote_average: movie.vote_average,
+            vote_count: movie.vote_count,
+            genre_ids: movie.genre_ids,
+            original_language: movie.original_language,
+            adult: movie.adult,
+            video: movie.video
+        };
+
+        try {
+            console.log(`${action} favorite request for:`, movie.title);
+            
+            const response = await fetch(`${API_BASE_URL}/movies/${movie.id}/favorite`, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth.user.access_token}`
+                },
+                // Only send body for POST request
+                body: method === 'POST' ? JSON.stringify(payload) : undefined
+            });
+
+            if (!response.ok) throw new Error(`Failed to ${action.toLowerCase()} favorite. Status: ${response.status}`);
+            console.log("Favorite updated successfully!");
+            // You might add logic here to refresh the favorite list or update local state
+        } catch (error) {
+            console.error("API Error:", error);
+            alert(`Failed to ${action.toLowerCase()} favorites. Check console.`);
+        }
+    };
 
   return (
     <div className="min-h-screen bg-[#141414] text-white font-sans overflow-x-hidden">
@@ -116,45 +134,55 @@ export default function App() {
         onLogoutClick={() => auth.signoutRedirect()}
       />
 
-      {/* HERO SECTION */}
-      <div className="relative h-[85vh] w-full mb-4">
-          <div className="absolute inset-0">
-            <img 
-              src="https://placehold.co/1920x1080/1a1a1a/ffffff?text=Featured+Blockbuster" 
-              className="w-full h-full object-cover"
-              alt="Featured"
-            />
-            <div className="absolute inset-0 bg-linear-to-r from-[#141414] via-[#141414]/30 to-transparent" />
-            <div className="absolute inset-0 bg-linear-to-t from-[#141414] via-transparent to-transparent" />
-          </div>
-          
-          <div className="absolute top-[45%] left-0 transform -translate-y-1/2 p-8 md:p-16 space-y-6 max-w-2xl z-10">
-             {/* Conditional Personal Greeting */}
-             {auth.isAuthenticated && (
-                <div className="flex items-center gap-2 text-gray-300 font-medium tracking-wide uppercase text-sm animate-in fade-in slide-in-from-left-4 duration-500">
-                    <span className="w-1 h-4 bg-red-600 block"></span>
-                    Welcome back, {auth.user?.profile.preferred_username || "User"}!
+      {/* UPDATED HERO SECTION to use dynamic heroMovie data */}
+            <div className="relative h-[85vh] w-full mb-4">
+                <div className="absolute inset-0">
+                    <img 
+                        src={
+                            heroMovie.backdrop_path 
+                                ? `https://image.tmdb.org/t/p/original${heroMovie.backdrop_path}` 
+                                : "https://placehold.co/1920x1080/1a1a1a/ffffff?text=Featured+Blockbuster"
+                        } 
+                        className="w-full h-full object-cover"
+                        alt={heroMovie.title}
+                    />
+                    <div className="absolute inset-0 bg-linear-to-r from-[#141414] via-[#141414]/30 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-[#141414] via-transparent to-transparent" />
                 </div>
-             )}
+                
+                <div className="absolute top-[45%] left-0 transform -translate-y-1/2 p-8 md:p-16 space-y-6 max-w-2xl z-10">
+                    {/* Conditional Personal Greeting */}
+                    {auth.isAuthenticated && (
+                        <div className="flex items-center gap-2 text-gray-300 font-medium tracking-wide uppercase text-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                            <span className="w-1 h-4 bg-red-600 block"></span>
+                            Welcome back, {auth.user?.profile.preferred_username || "User"}!
+                        </div>
+                    )}
 
-             <h1 className="text-5xl md:text-7xl font-black drop-shadow-2xl leading-tight">
-               INTERSTELLAR <br/> <span className="text-3xl md:text-4xl font-light text-gray-200">ODYSSEY</span>
-             </h1>
-             
-             <p className="text-lg text-gray-200 drop-shadow-md line-clamp-3">
-               Prepare for the ultimate journey beyond the stars. The fate of humanity rests in the hands of a few brave explorers in this cinematic masterpiece.
-             </p>
-             
-             <div className="flex gap-4 pt-2">
-                <button className="bg-white text-black px-8 py-3 rounded font-bold hover:bg-gray-200 transition flex items-center gap-2 text-lg">
-                   <Play className="fill-black" size={24} /> Play
-                </button>
-                <button className="bg-gray-500/40 backdrop-blur-md text-white px-8 py-3 rounded font-bold hover:bg-gray-500/60 transition flex items-center gap-2 text-lg">
-                   <Info size={24} /> More Info
-                </button>
-             </div>
-          </div>
-      </div>
+                    {/* DYNAMIC TITLE */}
+                    <h1 className="text-5xl md:text-7xl font-black drop-shadow-2xl leading-tight">
+                        {heroMovie.title.toUpperCase()}
+                        <br/> 
+                        {heroMovie.original_title && heroMovie.original_title !== heroMovie.title && (
+                            <span className="text-3xl md:text-4xl font-light text-gray-200">{heroMovie.original_title}</span>
+                        )}
+                    </h1>
+                    
+                    {/* DYNAMIC OVERVIEW */}
+                    <p className="text-lg text-gray-200 drop-shadow-md line-clamp-3">
+                        {heroMovie.overview}
+                    </p>
+                    
+                    <div className="flex gap-4 pt-2">
+                        <button 
+                            className="bg-gray-500/40 backdrop-blur-md text-white px-8 py-3 rounded font-bold hover:bg-gray-500/60 transition flex items-center gap-2 text-lg"
+                            onClick={() => handleMovieClick(heroMovie)}
+                        >
+                            <Info size={24} /> More Info
+                        </button>
+                    </div>
+                </div>
+            </div>
 
       {/* Content Rows */}
       <div className="relative z-20 space-y-2 md:-mt-24 pl-0">
@@ -186,6 +214,7 @@ export default function App() {
         movie={selectedMovie} 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
+        onFavoriteToggle={toggleFavorite}
       />
     </div>
   );

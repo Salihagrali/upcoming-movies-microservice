@@ -22,12 +22,14 @@ public class MovieController {
     private final MovieEventProducer eventProducer;
 
     @GetMapping("/upcomingMovies")
-    @Operation(summary = "Get upcoming movies",security = { @SecurityRequirement(name = "bearerAuth") })
+    @Operation(summary = "Get upcoming movies"
+            //,security = { @SecurityRequirement(name = "bearerAuth") }
+            )
     public List<Movie> getUpcomingMovies(
-            @AuthenticationPrincipal Jwt jwt,
+            //@AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false, defaultValue = "1") int pageNumber) {
-        System.out.println("User name: " + jwt.getClaim("preferred_username"));
-        System.out.println("User ID: " + jwt.getClaim("sub"));
+        //System.out.println("User name: " + jwt.getClaim("preferred_username"));
+        //System.out.println("User ID: " + jwt.getClaim("sub"));
         return movieService.fetchUpcomingMovies(pageNumber);
     }
 

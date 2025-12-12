@@ -24,11 +24,9 @@ export const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, userName, onLoginCli
         <div className="flex items-center justify-between h-16">
           {/* Left Side: Logo & Links */}
           <div className="flex items-center gap-8">
-            <span className="text-red-600 font-bold text-2xl tracking-wider cursor-pointer">MOVIETIME</span>
+            <span className="text-red-600 font-bold text-2xl tracking-wider cursor-pointer">UPCOMINGS</span>
             <div className="hidden md:flex space-x-6">
               <a href="#" className="text-white text-sm font-medium hover:text-gray-300 transition">Home</a>
-              <a href="#" className="text-gray-300 text-sm font-medium hover:text-white transition">TV Shows</a>
-              <a href="#" className="text-gray-300 text-sm font-medium hover:text-white transition">Movies</a>
               {isLoggedIn && (
                   <a href="#" className="text-gray-300 text-sm font-medium hover:text-white transition">My List</a>
               )}

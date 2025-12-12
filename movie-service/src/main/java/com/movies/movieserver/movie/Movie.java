@@ -16,5 +16,7 @@ public record Movie(
         List<Integer> genre_ids,
         String original_language,
         boolean adult,
-        boolean video) {
+        boolean video,
+        //Newly added.
+        boolean isFavorite) {
 }

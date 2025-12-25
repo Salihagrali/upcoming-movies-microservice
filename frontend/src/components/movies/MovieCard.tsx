@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { MovieData } from "../../types/movie";
 import { Heart, Play } from "lucide-react";
 
@@ -10,20 +11,29 @@ interface MovieCardProps {
 }
 
 export const MovieCard: React.FC<MovieCardProps> = ({ movie, onMovieClick, onFavoriteClick }) => {
+    // TEST IT !!!!!
+    // 1. Initialize local state with the prop value
+    const [isFavLocal, setIsFavLocal] = useState(movie.isFavorite);
     
-    // 1. REMOVED: const [isFavorite, setIsFavorite] = useState(false);
-    // We now use movie.isFavorite from props for the source of truth.
+    // 2. Sync local state if the parent prop changes (e.g. on page reload or fresh fetch)
+    useEffect(() => {
+      setIsFavLocal(movie.isFavorite);
+    }, [movie.isFavorite]);
 
     const handleFavoriteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         
-        // 4. UPDATED LOGIC: Call the parent handler, passing the movie and its current status.
-        // The App component will handle the API call (POST/DELETE) and state update.
-        onFavoriteClick(movie, movie.isFavorite);
+        // 3. INSTANTLY flip the heart color (Visual only)
+        const newStatus = !isFavLocal;
+        setIsFavLocal(newStatus);
+        
+        // 4. Tell parent to make the API call
+        // We pass the *old* status (isFavLocal) because App.tsx uses it to decide POST vs DELETE
+        onFavoriteClick(movie, isFavLocal);
     };
 
     // Determine the icon state based on the movie prop
-    const isCurrentlyFavorite = movie.isFavorite;
+    const isCurrentlyFavorite = isFavLocal;
 
     return (
         <div 

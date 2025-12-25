@@ -60,7 +60,7 @@ export default function App() {
     }, [fetchMovieData]);
 
     // Combined Loading State
-    if (auth.isLoading || isLoadingData || !heroMovie) {
+    if (isLoadingData || !heroMovie) {
         return (
             <div className="min-h-screen bg-[#141414] flex items-center justify-center">
                 <div className="text-red-600 font-bold text-2xl animate-pulse">Loading Movie Data...</div>
@@ -73,7 +73,6 @@ export default function App() {
         setIsModalOpen(true);
     };
 
-  // 3. UPDATED API Logic for Favorites (Toggles POST/DELETE)
     const toggleFavorite = async (movie: MovieData, isFavorite: boolean) => {
         if (!auth.isAuthenticated || !auth.user?.access_token) {
             alert("Please log in to add to favorites!");
@@ -134,7 +133,6 @@ export default function App() {
         onLogoutClick={() => auth.signoutRedirect()}
       />
 
-      {/* UPDATED HERO SECTION to use dynamic heroMovie data */}
             <div className="relative h-[85vh] w-full mb-4">
                 <div className="absolute inset-0">
                     <img 

@@ -72,6 +72,8 @@ public class FavoriteMovie {
 
     private Boolean video;
 
+    private Boolean isFavorite;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

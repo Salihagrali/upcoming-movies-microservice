@@ -11,8 +11,6 @@ interface MovieCardProps {
 }
 
 export const MovieCard: React.FC<MovieCardProps> = ({ movie, onMovieClick, onFavoriteClick }) => {
-    // TEST IT !!!!!
-    // 1. Initialize local state with the prop value
     const [isFavLocal, setIsFavLocal] = useState(movie.isFavorite);
     
     // 2. Sync local state if the parent prop changes (e.g. on page reload or fresh fetch)
@@ -20,16 +18,20 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onMovieClick, onFav
       setIsFavLocal(movie.isFavorite);
     }, [movie.isFavorite]);
 
-    const handleFavoriteClick = (e: React.MouseEvent) => {
+    const handleFavoriteClick = async (e: React.MouseEvent) => {
         e.stopPropagation();
         
-        // 3. INSTANTLY flip the heart color (Visual only)
+        const previousStatus = isFavLocal;
         const newStatus = !isFavLocal;
         setIsFavLocal(newStatus);
-        
-        // 4. Tell parent to make the API call
-        // We pass the *old* status (isFavLocal) because App.tsx uses it to decide POST vs DELETE
-        onFavoriteClick(movie, isFavLocal);
+
+        try {
+            await onFavoriteClick(movie, previousStatus);
+
+        } catch (error) {
+            console.error("Failed to update favorite, reverting UI", error);
+            setIsFavLocal(previousStatus);
+        }
     };
 
     // Determine the icon state based on the movie prop

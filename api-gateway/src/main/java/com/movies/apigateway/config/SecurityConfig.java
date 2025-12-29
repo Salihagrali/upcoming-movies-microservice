@@ -38,7 +38,8 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/movies/v3/api-docs",
                                 "/movies/nowPlaying",
-                                "/movies/upcomingMovies"
+                                "/movies/upcomingMovies",
+                                "/favorites"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )

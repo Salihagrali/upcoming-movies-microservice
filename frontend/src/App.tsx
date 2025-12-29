@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Play, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import type { MovieData } from './types/movie';
 import { Navbar } from './components/common/Navbar';
 import { MovieSlider } from './components/movies/MovieSlider';
@@ -21,43 +21,73 @@ export default function App() {
   // NEW: State for the Movie to feature in the Hero section
     const [heroMovie, setHeroMovie] = useState<MovieData | null>(null);
 
-  // 1. Data Fetching Function (Reusable)
-    const fetchMovieData = useCallback(async (endpoint: string, setter: React.Dispatch<React.SetStateAction<MovieData[]>>) => {
-        try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch data from ${endpoint}. Status: ${response.status}`);
-            }
-            const data: MovieData[] = await response.json();
-            setter(data);
-            return data; // Return data for setting hero movie
-        } catch (error) {
-            console.error("API Fetch Error:", error);
-            setter([]); 
-            return [];
-        }
-    }, []);
+  // 1. Cleaner Fetcher: Just gets data, doesn't set state yet
+  const fetchMovieData = useCallback(async (endpoint: string) => {
+      try {
+          const response = await fetch(`${API_BASE_URL}${endpoint}`);
+          if (!response.ok) throw new Error("Fetch failed");
+          return await response.json();
+      } catch (error) {
+          console.error(error);
+          return [];
+      }
+  }, []);
 
-  // 2. Effect to fetch movies and set the hero movie
-    useEffect(() => {
-        setIsLoadingData(true);
-        const fetchAllData = async () => {
-            // Fetch upcoming movies and capture the result
-            const upcoming = await fetchMovieData('/movies/upcomingMovies', setUpcomingMovies);
-            
-            // Fetch now playing movies concurrently
-            await fetchMovieData('/movies/nowPlaying', setNowPlayingMovies);
-
-            // Set the Hero movie using the first movie from upcoming
-            if (upcoming.length > 0) {
-                setHeroMovie(upcoming[0]);
-            }
-
-            setIsLoadingData(false);
-        };
-        
-        fetchAllData();
-    }, [fetchMovieData]);
+   // 2. The Main Effect
+   useEffect(() => {
+       setIsLoadingData(true);
+   
+       const fetchAllData = async () => {
+           // A. Prepare a list of Favorite IDs
+           let favoriteIds = new Set<number>(); // Using a Set makes lookups instant
+       
+           // Only fetch favorites if the user is logged in
+           if (auth.user?.access_token) {
+               try {
+                   const favResponse = await fetch(`${API_BASE_URL}/favorites/api/favorites`, { // Adjust to your actual endpoint
+                       headers: { 'Authorization': `Bearer ${auth.user.access_token}` }
+                   });
+                   
+                   if (favResponse.ok) {
+                       const favData = await favResponse.json();
+                       // Assuming your backend returns a list where objects have a 'movieId' or 'id'
+                       // We stick them in a Set for easy checking later
+                       favData.forEach((fav: any) => favoriteIds.add(fav.movieId)); 
+                   }
+               } catch (err) {
+                   console.error("Could not load favorites", err);
+               }
+           }
+       
+           // B. Fetch the Movie Lists
+           const upcoming = await fetchMovieData('/movies/upcomingMovies');
+           const nowPlaying = await fetchMovieData('/movies/nowPlaying');
+       
+           // C. The "Merge" - Check each movie against the favorite list
+           // We add an 'isFavorite' property to the movie object
+           const mapFavorites = (movies: MovieData[]) => {
+               return movies.map(movie => ({
+                   ...movie,
+                   isFavorite: favoriteIds.has(movie.id) // True if ID is in the set
+               }));
+           };
+       
+           const mergedUpcoming = mapFavorites(upcoming);
+           const mergedNowPlaying = mapFavorites(nowPlaying);
+       
+           // D. Finally, update the screen
+           setUpcomingMovies(mergedUpcoming);
+           setNowPlayingMovies(mergedNowPlaying);
+       
+           if (mergedUpcoming.length > 0) {
+               setHeroMovie(mergedUpcoming[0]);
+           }
+       
+           setIsLoadingData(false);
+       };
+   
+       fetchAllData();
+   }, [fetchMovieData, auth.user?.access_token]); // Re-run if user logs in/out
 
     // Combined Loading State
     if (isLoadingData || !heroMovie) {
@@ -76,7 +106,7 @@ export default function App() {
     const toggleFavorite = async (movie: MovieData, isFavorite: boolean) => {
         if (!auth.isAuthenticated || !auth.user?.access_token) {
             alert("Please log in to add to favorites!");
-            return;
+            throw new Error("Log in to add to favorites!");
         }
 
         const method = isFavorite ? 'DELETE' : 'POST';
@@ -98,7 +128,8 @@ export default function App() {
             genre_ids: movie.genre_ids,
             original_language: movie.original_language,
             adult: movie.adult,
-            video: movie.video
+            video: movie.video,
+            isFavorite : movie.isFavorite
         };
 
         try {
@@ -117,6 +148,17 @@ export default function App() {
             if (!response.ok) throw new Error(`Failed to ${action.toLowerCase()} favorite. Status: ${response.status}`);
             console.log("Favorite updated successfully!");
             // You might add logic here to refresh the favorite list or update local state
+            const newStatus = !isFavorite;
+            const updateList = (list: MovieData[]) => 
+                list.map(m => m.id === movie.id ? { ...m, isFavorite: newStatus } : m);
+
+            setUpcomingMovies(prev => updateList(prev));
+            setNowPlayingMovies(prev => updateList(prev));
+
+            if (heroMovie?.id === movie.id) {
+                setHeroMovie(prev => prev ? { ...prev, isFavorite: newStatus } : null);
+            }
+        
         } catch (error) {
             console.error("API Error:", error);
             alert(`Failed to ${action.toLowerCase()} favorites. Check console.`);

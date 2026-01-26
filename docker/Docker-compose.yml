@@ -1,0 +1,260 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. INFRASTRUCTURE (Database, Messaging, Auth)
+  # ==========================================
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - microservices-network
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    networks:
+      - microservices-network
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - microservices-network
+
+  postgres:
+    image: postgres:latest
+    container_name: favorite-service-postgres
+    environment:
+      POSTGRES_USER: favorite_user
+      POSTGRES_PASSWORD: favorite_password
+      POSTGRES_DB: favorite_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "1432:5432"
+    volumes:
+      - ./my-data/postgres:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - microservices-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U favorite_user -d favorite_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    networks:
+      - microservices-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis/redis-stack:latest
+    container_name: redis-stack
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - ./my-data/redis:/data
+    networks:
+      - microservices-network
+
+  keycloak:
+    image: keycloak/keycloak:26.3.4
+    container_name: keycloak
+    command: start-dev
+    ports:
+      - "8443:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./my-data/keycloak:/opt/keycloak/data
+    networks:
+      - microservices-network
+
+  # ==========================================
+  # 2. CONFIG & DISCOVERY SERVICE
+  # ==========================================
+  config-server:
+    container_name: config-server
+    build:
+      context: ../config-server
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      GIT_USER: ${GIT_USER}
+      GIT_TOKEN: ${GIT_TOKEN}
+      # Don't register with Eureka - config server should be standalone
+      #EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      #EUREKA_CLIENT_FETCH_REGISTRY: "false"
+    networks:
+      - microservices-network
+    restart: on-failure
+
+  eureka-server:
+    container_name: eureka-server
+    build:
+      context: ../eureka-server
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_INSTANCE_HOSTNAME: eureka-server
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+      CONFIG_SERVER_URL: http://config-server:8081
+      SERVER_PORT: 8761
+    networks:
+      - microservices-network
+    depends_on:
+      - config-server
+    restart: on-failure
+
+  # ==========================================
+  # 3. BACKEND MICROSERVICES
+  # ==========================================
+
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: ../api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8081
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/upcomingMovies
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/upcomingMovies/protocol/openid-connect/certs
+    depends_on:
+      - config-server
+      - eureka-server
+      - keycloak
+    networks:
+      - microservices-network
+    restart: on-failure
+
+  movie-service:
+    container_name: movie-service
+    build:
+      context: ../movie-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      TMBD_API: ${TMBD_API}
+      CONFIG_SERVER_URL: http://config-server:8081
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/upcomingMovies
+    depends_on:
+      - config-server
+      - kafka
+      - eureka-server
+      - keycloak
+    networks:
+      - microservices-network
+    restart: on-failure
+
+  favorite-service:
+    container_name: favorite-service
+    build:
+      context: ../favorite-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://favorite-service-postgres:5432/favorite_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/upcomingMovies
+    depends_on:
+      - config-server
+      - postgres
+      - kafka
+      - eureka-server
+    networks:
+      - microservices-network
+    restart: on-failure
+
+  user-service:
+    container_name: user-service
+    build:
+      context: ../user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      KEYCLOAK_SERVERURL: http://keycloak:8080
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      CONFIG_SERVER_URL: http://config-server:8081
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      - config-server
+      - keycloak
+      - eureka-server
+    networks:
+      - microservices-network
+    restart: on-failure
+
+
+networks:
+  microservices-network:
+    driver: bridge

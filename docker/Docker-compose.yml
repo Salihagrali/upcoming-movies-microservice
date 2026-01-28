@@ -203,6 +203,8 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/upcomingMovies
+      SPRING_DATA_REDIS_HOST: redis-stack
+      SPRING_DATA_REDIS_PORT: 6379
     depends_on:
       - config-server
       - kafka

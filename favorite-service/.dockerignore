@@ -1,0 +1,25 @@
+# Ignore the "target" folder (We build fresh inside Docker!)
+target/
+build/
+
+# Ignore Git history (Security & Size)
+.git
+.gitignore
+
+# Ignore IDE files (IntelliJ / Eclipse / VS Code)
+.idea
+.vscode
+*.iml
+*.class
+.classpath
+.project
+.settings
+
+# Ignore local logs or temporary files
+*.log
+logs/
+temp/
+
+# Ignore the Dockerfile itself
+Dockerfile
+.dockerignore

@@ -33,6 +33,17 @@ export default function App() {
       }
   }, []);
 
+   const removeDuplicates = (movies: MovieData[]) => {
+       // A Map automatically handles uniqueness by overwriting duplicate keys
+        const uniqueMoviesMap = new Map();
+        movies.forEach(movie => {
+           if (movie && movie.id) {
+               uniqueMoviesMap.set(movie.id, movie);
+           }
+        });
+        return Array.from(uniqueMoviesMap.values());
+    };
+
    // 2. The Main Effect
    useEffect(() => {
        setIsLoadingData(true);
@@ -60,8 +71,11 @@ export default function App() {
            }
        
            // B. Fetch the Movie Lists
-           const upcoming = await fetchMovieData('/movies/upcomingMovies');
-           const nowPlaying = await fetchMovieData('/movies/nowPlaying');
+           const upcomingRaw = await fetchMovieData('/movies/upcomingMovies');
+           const nowPlayingRaw = await fetchMovieData('/movies/nowPlaying');
+            //Temporary solution for duplicate data !
+           const upcoming = removeDuplicates(upcomingRaw);
+           const nowPlaying = removeDuplicates(nowPlayingRaw);
        
            // C. The "Merge" - Check each movie against the favorite list
            // We add an 'isFavorite' property to the movie object
